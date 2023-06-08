@@ -8,32 +8,30 @@ import tensorflow as tf
 import tensorflow_hub as hub
 import os
 import gc
-import uuid
-import functions_framework
 
 # Model info
 folder = "/tmp/"
 model = None
 class_names = ['Healthy', 'Miner', 'Phoma', 'Rust']
 
-# Model Bucket details
-PROJECT_ID = "cosmic-anthem-386408"
-GCS_MODEL_BUCKET_NAME = "c23-ps414-statics"
-GCS_MODEL_FILE = "models/model.h5"
-
 # Initialise client
-client = storage.Client(PROJECT_ID)
-db = firestore.Client(PROJECT_ID)
+client = storage.Client("cosmic-anthem-386408")
+db = firestore.Client("cosmic-anthem-386408")
 
-@functions_framework.cloud_event
-def predict(event):
-    # TODO: Remove this when deploy
-    event = event.data
+def predict(event, context):
+    print(f"Processing: {context.resource}")
+
+    # Get resource
+    id = event["value"]["fields"]["filename"]["stringValue"]
+    path_parts = context.resource.split('/documents/')[1].split('/')
+    collection_path = path_parts[0]
+    document_path = '/'.join(path_parts[1:])
+    affectedDoc = db.collection(collection_path).document(document_path)
 
     # Download file from GCS
-    file_path = folder + str(uuid.uuid4())
-    bucket = client.get_bucket(event["bucket"])
-    blob = bucket.get_blob(event["name"])
+    file_path = folder + id
+    bucket = client.get_bucket("cs23-ps414-images-bkt")
+    blob = bucket.get_blob(f"images/{id}")
     blob.download_to_filename(file_path)
     
     # Use the global model variable 
@@ -57,9 +55,7 @@ def predict(event):
     inference_time = end_time - start_time
 
     # Update data
-    doc_id = os.path.basename(event["name"])
-    doc_ref = db.collection('images').document(doc_id)
-    doc_ref.update({
+    affectedDoc.update({
         'label': predicted_class,
         'confidence': float(confidence),
         'inferenceTime': round(inference_time),
@@ -82,10 +78,10 @@ def transform_image(img):
 
 def download_model_file():
     # Create a bucket object for our bucket
-    bucket = client.get_bucket(GCS_MODEL_BUCKET_NAME)
+    bucket = client.get_bucket("c23-ps414-statics")
 
     # Create a blob object from the filepath
-    blob = bucket.blob(GCS_MODEL_FILE)
+    blob = bucket.blob("models/model.h5")
 
     if not os.path.exists(folder):
         os.makedirs(folder)
