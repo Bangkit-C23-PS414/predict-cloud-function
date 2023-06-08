@@ -1,0 +1,6 @@
+numpy
+Pillow
+tensorflow
+tensorflow-hub
+google-cloud-storage
+google-cloud-firestore
