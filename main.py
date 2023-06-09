@@ -70,7 +70,7 @@ def predict(event, context):
     predicted_class = class_names[np.argmax(prediction[0])]
     confidence = np.max(prediction[0])
     logs["label"] = predicted_class
-    logs["confidence"] = confidence
+    logs["confidence"] = float(confidence)
 
     # Update data
     affectedDoc.update({
