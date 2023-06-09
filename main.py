@@ -38,19 +38,30 @@ def predict(event, context):
     blob.download_to_filename(file_path)
     end_time = time.time()
     logs["download-image"] = end_time - start_time
-    
+
     # Use the global model variable 
     global model
     if not model:
+        # Download model
         start_time = time.time()
         download_model_file()
         end_time = time.time()
         logs["download-model"] = end_time - start_time
-        
+
+        # Load model
         start_time = time.time()
-        model = tf.keras.models.load_model(folder + "model.h5", custom_objects = {"KerasLayer" : hub.KerasLayer})
+        model = tf.keras.models.load_model(
+            folder + "model.h5",
+            custom_objects={"KerasLayer": hub.KerasLayer})
         end_time = time.time()
         logs["load-model"] = end_time - start_time
+
+        # Warm up
+        start_time = time.time()
+        tensor_zeros = tf.zeros([1, 224, 224, 3], tf.float64)
+        model.predict(tensor_zeros, verbose=0)
+        end_time = time.time()
+        logs["warm-up-model"] = end_time - start_time
 
     # Transform image
     start_time = time.time()
@@ -61,7 +72,7 @@ def predict(event, context):
 
     # Predict image
     start_time = time.time()
-    prediction = model.predict(image)
+    prediction = model.predict(image, verbose=0)
     end_time = time.time()
     inference_time = end_time - start_time
     logs["inference-time"] = end_time - start_time
