@@ -8,6 +8,7 @@ import tensorflow as tf
 import tensorflow_hub as hub
 import os
 import gc
+import json
 
 # Model info
 folder = "/tmp/"
@@ -83,7 +84,7 @@ def predict(event, context):
     # Clean up
     os.remove(file_path)
     gc.collect()
-    print(f"Logs: {context.resource}\n{logs}")
+    print(f"Logs: {context.resource} {json.dumps(logs)}")
 
 
 def transform_image(img):
