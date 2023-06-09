@@ -20,6 +20,7 @@ db = firestore.Client("cosmic-anthem-386408")
 
 def predict(event, context):
     print(f"Processing: {context.resource}")
+    logs = dict()
 
     # Get resource
     id = event["value"]["fields"]["filename"]["stringValue"]
@@ -29,43 +30,58 @@ def predict(event, context):
     affectedDoc = db.collection(collection_path).document(document_path)
 
     # Download file from GCS
+    start_time = time.time()
     file_path = folder + id
     bucket = client.get_bucket("cs23-ps414-images-bkt")
     blob = bucket.get_blob(f"images/{id}")
     blob.download_to_filename(file_path)
+    end_time = time.time()
+    logs["download-image"] = end_time - start_time
     
     # Use the global model variable 
     global model
     if not model:
+        start_time = time.time()
         download_model_file()
+        end_time = time.time()
+        logs["download-model"] = end_time - start_time
+        
+        start_time = time.time()
         model = tf.keras.models.load_model(folder + "model.h5", custom_objects = {"KerasLayer" : hub.KerasLayer})
+        end_time = time.time()
+        logs["load-model"] = end_time - start_time
 
     # Transform image
+    start_time = time.time()
     original_image = Image.open(file_path)
     image = transform_image(original_image)
+    end_time = time.time()
+    logs["transform-image"] = end_time - start_time
 
     # Predict image
-    start_time = time.time() * 1000
+    start_time = time.time()
     prediction = model.predict(image)
-    end_time = time.time() * 1000
+    end_time = time.time()
+    inference_time = end_time - start_time
+    logs["inference-time"] = end_time - start_time
 
     # Get prediction class
     predicted_class = class_names[np.argmax(prediction[0])]
     confidence = np.max(prediction[0])
-    inference_time = end_time - start_time
 
     # Update data
     affectedDoc.update({
         'label': predicted_class,
         'confidence': float(confidence),
-        'inferenceTime': round(inference_time),
-        'detectedAt': round(end_time),
+        'inferenceTime': round(inference_time * 1000),
+        'detectedAt': round(end_time * 1000),
         'isDetected': True
     })
 
     # Clean up
     os.remove(file_path)
     gc.collect()
+    print(f"Logs: {context.resource}\n{logs}")
 
 
 def transform_image(img):
