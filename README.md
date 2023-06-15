@@ -7,7 +7,7 @@ predict-cloud-function is a consumable REST API service for the [image-service](
 ## Build With
 
 - [Python](https://www.python.org/)
-- [Google App Function](https://cloud.google.com/functions)
+- [Google Cloud Function](https://cloud.google.com/functions)
 
 ## Load the ML model
 
